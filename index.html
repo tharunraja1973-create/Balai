@@ -1,48 +1,184 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0b1020">
-  <title>BALA AI — All-in-One AI</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand"><span class="brand-mark">B</span><div><b>BALA AI</b><small>ALL-IN-ONE ASSISTANT</small></div></div>
-      <button id="newChat" class="new-chat">＋ New chat</button>
-      <div class="side-label">AI MODELS</div>
-      <button class="model-choice active" data-provider="openai"><span class="dot green"></span> ChatGPT <small>OpenAI</small></button>
-      <button class="model-choice" data-provider="claude"><span class="dot orange"></span> Claude <small>Anthropic</small></button>
-      <button class="model-choice" data-provider="gemini"><span class="dot blue"></span> Gemini <small>Google</small></button>
-      <button id="compareToggle" class="compare-choice">⇄ Compare all 3</button>
-      <div class="sidebar-bottom"><span class="status-dot"></span><span id="statusText">Checking API setup…</span></div>
-    </aside>
 
-    <main class="main">
-      <header class="topbar"><div class="mobile-brand">✦ BALA AI</div><span class="secure-label">🔒 API keys stay on your server</span></header>
-      <section class="welcome" id="welcome">
-        <div class="sparkle">✦</div>
-        <p class="eyebrow">YOUR PERSONAL AI WORKSPACE</p>
-        <h1>One place.<br><span>Three powerful AIs.</span></h1>
-        <p class="subtitle">Ask a question, choose your AI, or compare all three answers side by side.</p>
-        <div class="suggestions">
-          <button data-prompt="Explain mechanical engineering in simple English.">⚙️ <span>Learn engineering<small>Explain a difficult topic</small></span></button>
-          <button data-prompt="Help me write a Python program and explain each step.">⌨️ <span>Write code<small>Build and debug projects</small></span></button>
-          <button data-prompt="Help me practise English speaking as a beginner.">💬 <span>Practise English<small>Learn through conversation</small></span></button>
-        </div>
-      </section>
-      <section id="messages" class="messages" aria-live="polite"></section>
-      <div class="composer-wrap">
-        <form id="chatForm" class="composer">
-          <textarea id="prompt" rows="1" maxlength="12000" placeholder="Message BALA AI… (Enter to send, Shift+Enter for new line)"></textarea>
-          <div class="composer-footer"><span id="modeLabel">Using ChatGPT</span><button id="sendBtn" type="submit" aria-label="Send message">↑</button></div>
-        </form>
-        <p class="disclaimer">AI can make mistakes. Verify important information. API usage may cost money.</p>
-      </div>
-    </main>
-  </div>
-  <script src="/static/app.js"></script>
-</body>
-</html>
+const messages = document.getElementById("messages");
+const promptInput = document.getElementById("prompt");
+const chatForm = document.getElementById("chatForm");
+const sendBtn = document.getElementById("sendBtn");
+const welcome = document.getElementById("welcome");
+const modeLabel = document.getElementById("modeLabel");
+const statusText = document.getElementById("statusText");
+const compareToggle = document.getElementById("compareToggle");
+
+let provider = "openai";
+let compareMode = false;
+let history = [];
+
+const providerNames = {
+  openai: "ChatGPT",
+  claude: "Claude",
+  gemini: "Gemini"
+};
+
+function addMessage(role, text) {
+  const article = document.createElement("article");
+  article.className = `message ${role}`;
+
+  const label = document.createElement("div");
+  label.className = "message-role";
+  label.textContent = role === "user" ? "You" : "BALA AI";
+
+  const content = document.createElement("div");
+  content.className = "message-content";
+  content.textContent = text;
+
+  article.append(label, content);
+  messages.appendChild(article);
+  messages.scrollTop = messages.scrollHeight;
+  return article;
+}
+
+function setProvider(nextProvider) {
+  provider = nextProvider;
+  compareMode = false;
+  compareToggle.classList.remove("active");
+
+  document.querySelectorAll(".model-choice").forEach(button => {
+    button.classList.toggle(
+      "active",
+      button.dataset.provider === provider
+    );
+  });
+
+  modeLabel.textContent = `Using ${providerNames[provider]}`;
+}
+
+document.querySelectorAll(".model-choice").forEach(button => {
+  button.addEventListener("click", () => {
+    setProvider(button.dataset.provider);
+  });
+});
+
+compareToggle.addEventListener("click", () => {
+  compareMode = !compareMode;
+  compareToggle.classList.toggle("active", compareMode);
+
+  if (compareMode) {
+    document.querySelectorAll(".model-choice").forEach(button => {
+      button.classList.remove("active");
+    });
+    modeLabel.textContent = "Comparing all 3 AIs";
+  } else {
+    setProvider(provider);
+  }
+});
+
+document.getElementById("newChat").addEventListener("click", () => {
+  messages.replaceChildren();
+  history = [];
+  welcome.hidden = false;
+  promptInput.value = "";
+  promptInput.focus();
+});
+
+document.querySelectorAll("[data-prompt]").forEach(button => {
+  button.addEventListener("click", () => {
+    promptInput.value = button.dataset.prompt;
+    promptInput.focus();
+    promptInput.style.height = "auto";
+    promptInput.style.height = `${promptInput.scrollHeight}px`;
+  });
+});
+
+promptInput.addEventListener("input", () => {
+  promptInput.style.height = "auto";
+  promptInput.style.height =
+    `${Math.min(promptInput.scrollHeight, 200)}px`;
+});
+
+chatForm.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const message = promptInput.value.trim();
+  if (!message || sendBtn.disabled) return;
+
+  welcome.hidden = true;
+  addMessage("user", message);
+  promptInput.value = "";
+  promptInput.style.height = "auto";
+  sendBtn.disabled = true;
+
+  const loading = addMessage("assistant", "Thinking…");
+
+  try {
+    const endpoint = compareMode ? "/api/compare" : "/api/chat";
+
+    const payload = compareMode
+      ? { message, history }
+      : { message, provider, history };
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || data.error || "Request failed");
+    }
+
+    loading.remove();
+
+    if (compareMode) {
+      const results = data.results || data;
+      for (const name of ["openai", "claude", "gemini"]) {
+        const result = results[name];
+        const answer =
+          typeof result === "string"
+            ? result
+            : result?.response || result?.reply || result?.error ||
+              "No answer returned.";
+        addMessage("assistant", `${providerNames[name]}\n\n${answer}`);
+      }
+    } else {
+      const answer =
+        data.response || data.reply || data.answer || data.message;
+
+      if (!answer) {
+        throw new Error("The server returned no answer. Check main.py.");
+      }
+
+      addMessage("assistant", String(answer));
+      history.push(
+        { role: "user", content: message },
+        { role: "assistant", content: String(answer) }
+      );
+      history = history.slice(-20);
+    }
+  } catch (error) {
+    loading.remove();
+    addMessage(
+      "assistant",
+      `Error: ${error.message}\n\nCheck your server logs and API configuration.`
+    );
+  } finally {
+    sendBtn.disabled = false;
+    promptInput.focus();
+  }
+});
+
+async function checkServer() {
+  try {
+    const response = await fetch("/api/health");
+    if (!response.ok) throw new Error("Server check failed");
+
+    const data = await response.json();
+    statusText.textContent = data.status
+      ? `Server: ${data.status}`
+      : "Server connected";
+  } catch {
+    statusText.textContent = "Server connection issue";
+  }
+}
+
+checkServer();
