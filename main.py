@@ -123,6 +123,6 @@ async def compare(req: CompareRequest):
 
 @app.get("/")
 async def home():
-    return FileResponse("index.html")
+    return FileResponse("static/index.html")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
