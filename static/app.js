@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (chatBox) {
                 chatBox.innerHTML +=
                     `<p><strong>BALA AI:</strong> ${
-                        escapeHTML(data.response || data.reply || "No response received")
+                        escapeHTML(data.answer || data.response || data.reply || data.message)
                     }</p>`;
             }
         } catch (error) {
