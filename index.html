@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1020">
+  <title>BALA AI — All-in-One AI</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">B</span><div><b>BALA AI</b><small>ALL-IN-ONE ASSISTANT</small></div></div>
+      <button id="newChat" class="new-chat">＋ New chat</button>
+      <div class="side-label">AI MODELS</div>
+      <button class="model-choice active" data-provider="openai"><span class="dot green"></span> ChatGPT <small>OpenAI</small></button>
+      <button class="model-choice" data-provider="claude"><span class="dot orange"></span> Claude <small>Anthropic</small></button>
+      <button class="model-choice" data-provider="gemini"><span class="dot blue"></span> Gemini <small>Google</small></button>
+      <button id="compareToggle" class="compare-choice">⇄ Compare all 3</button>
+      <div class="sidebar-bottom"><span class="status-dot"></span><span id="statusText">Checking API setup…</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar"><div class="mobile-brand">✦ BALA AI</div><span class="secure-label">🔒 API keys stay on your server</span></header>
+      <section class="welcome" id="welcome">
+        <div class="sparkle">✦</div>
+        <p class="eyebrow">YOUR PERSONAL AI WORKSPACE</p>
+        <h1>One place.<br><span>Three powerful AIs.</span></h1>
+        <p class="subtitle">Ask a question, choose your AI, or compare all three answers side by side.</p>
+        <div class="suggestions">
+          <button data-prompt="Explain mechanical engineering in simple English.">⚙️ <span>Learn engineering<small>Explain a difficult topic</small></span></button>
+          <button data-prompt="Help me write a Python program and explain each step.">⌨️ <span>Write code<small>Build and debug projects</small></span></button>
+          <button data-prompt="Help me practise English speaking as a beginner.">💬 <span>Practise English<small>Learn through conversation</small></span></button>
+        </div>
+      </section>
+      <section id="messages" class="messages" aria-live="polite"></section>
+      <div class="composer-wrap">
+        <form id="chatForm" class="composer">
+          <textarea id="prompt" rows="1" maxlength="12000" placeholder="Message BALA AI… (Enter to send, Shift+Enter for new line)"></textarea>
+          <div class="composer-footer"><span id="modeLabel">Using ChatGPT</span><button id="sendBtn" type="submit" aria-label="Send message">↑</button></div>
+        </form>
+        <p class="disclaimer">AI can make mistakes. Verify important information. API usage may cost money.</p>
+      </div>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
