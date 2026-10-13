@@ -1,0 +1,184 @@
+
+const messages = document.getElementById("messages");
+const promptInput = document.getElementById("prompt");
+const chatForm = document.getElementById("chatForm");
+const sendBtn = document.getElementById("sendBtn");
+const welcome = document.getElementById("welcome");
+const modeLabel = document.getElementById("modeLabel");
+const statusText = document.getElementById("statusText");
+const compareToggle = document.getElementById("compareToggle");
+
+let provider = "openai";
+let compareMode = false;
+let history = [];
+
+const providerNames = {
+  openai: "ChatGPT",
+  claude: "Claude",
+  gemini: "Gemini"
+};
+
+function addMessage(role, text) {
+  const article = document.createElement("article");
+  article.className = `message ${role}`;
+
+  const label = document.createElement("div");
+  label.className = "message-role";
+  label.textContent = role === "user" ? "You" : "BALA AI";
+
+  const content = document.createElement("div");
+  content.className = "message-content";
+  content.textContent = text;
+
+  article.append(label, content);
+  messages.appendChild(article);
+  messages.scrollTop = messages.scrollHeight;
+  return article;
+}
+
+function setProvider(nextProvider) {
+  provider = nextProvider;
+  compareMode = false;
+  compareToggle.classList.remove("active");
+
+  document.querySelectorAll(".model-choice").forEach(button => {
+    button.classList.toggle(
+      "active",
+      button.dataset.provider === provider
+    );
+  });
+
+  modeLabel.textContent = `Using ${providerNames[provider]}`;
+}
+
+document.querySelectorAll(".model-choice").forEach(button => {
+  button.addEventListener("click", () => {
+    setProvider(button.dataset.provider);
+  });
+});
+
+compareToggle.addEventListener("click", () => {
+  compareMode = !compareMode;
+  compareToggle.classList.toggle("active", compareMode);
+
+  if (compareMode) {
+    document.querySelectorAll(".model-choice").forEach(button => {
+      button.classList.remove("active");
+    });
+    modeLabel.textContent = "Comparing all 3 AIs";
+  } else {
+    setProvider(provider);
+  }
+});
+
+document.getElementById("newChat").addEventListener("click", () => {
+  messages.replaceChildren();
+  history = [];
+  welcome.hidden = false;
+  promptInput.value = "";
+  promptInput.focus();
+});
+
+document.querySelectorAll("[data-prompt]").forEach(button => {
+  button.addEventListener("click", () => {
+    promptInput.value = button.dataset.prompt;
+    promptInput.focus();
+    promptInput.style.height = "auto";
+    promptInput.style.height = `${promptInput.scrollHeight}px`;
+  });
+});
+
+promptInput.addEventListener("input", () => {
+  promptInput.style.height = "auto";
+  promptInput.style.height =
+    `${Math.min(promptInput.scrollHeight, 200)}px`;
+});
+
+chatForm.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const message = promptInput.value.trim();
+  if (!message || sendBtn.disabled) return;
+
+  welcome.hidden = true;
+  addMessage("user", message);
+  promptInput.value = "";
+  promptInput.style.height = "auto";
+  sendBtn.disabled = true;
+
+  const loading = addMessage("assistant", "Thinking…");
+
+  try {
+    const endpoint = compareMode ? "/api/compare" : "/api/chat";
+
+    const payload = compareMode
+      ? { message, history }
+      : { message, provider, history };
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || data.error || "Request failed");
+    }
+
+    loading.remove();
+
+    if (compareMode) {
+      const results = data.results || data;
+      for (const name of ["openai", "claude", "gemini"]) {
+        const result = results[name];
+        const answer =
+          typeof result === "string"
+            ? result
+            : result?.response || result?.reply || result?.error ||
+              "No answer returned.";
+        addMessage("assistant", `${providerNames[name]}\n\n${answer}`);
+      }
+    } else {
+      const answer =
+        data.response || data.reply || data.answer || data.message;
+
+      if (!answer) {
+        throw new Error("The server returned no answer. Check main.py.");
+      }
+
+      addMessage("assistant", String(answer));
+      history.push(
+        { role: "user", content: message },
+        { role: "assistant", content: String(answer) }
+      );
+      history = history.slice(-20);
+    }
+  } catch (error) {
+    loading.remove();
+    addMessage(
+      "assistant",
+      `Error: ${error.message}\n\nCheck your server logs and API configuration.`
+    );
+  } finally {
+    sendBtn.disabled = false;
+    promptInput.focus();
+  }
+});
+
+async function checkServer() {
+  try {
+    const response = await fetch("/api/health");
+    if (!response.ok) throw new Error("Server check failed");
+
+    const data = await response.json();
+    statusText.textContent = data.status
+      ? `Server: ${data.status}`
+      : "Server connected";
+  } catch {
+    statusText.textContent = "Server connection issue";
+  }
+}
+
+checkServer();
